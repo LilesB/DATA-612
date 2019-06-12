@@ -1,0 +1,279 @@
+---
+title: "DATA 612 Global Baseline Predictors and RMSE"
+author: "Brian K. Liles"
+date: "June 11, 2019"
+output: html_document
+---
+#Library
+```{r include=FALSE}
+library(tidyverse)
+library(modelr)
+```
+#Briefly describe the recommender system that you're going to build out from a business perspective
+The goal is to build a recommender system for future viewers of HBO's hit drama "The Wire". Running for 5 years, the show focused on the city of Baltimore and the social ills it faced. Recognized by many as one of televisions best, our recommender system will follow the ratings of the five seasons.
+
+#Load your Data into a R dataframe
+```{}
+# load the dataset and determine the classification 
+wireRatings <- read.csv("C:\\Users\\lizza\\Desktop\\CUNY Summer 2019\\theWire.csv",
+                        row.names = 1)
+class(wireRatings)
+```
+
+```{r}
+# using the glimpse function we will look at the dataset 
+glimpse(wireRatings)
+```
+```{r}
+# convert the dataset into a matrix using the as.matrix function
+wire <- as.matrix(wireRatings)
+class(wire)
+```
+```{r}
+glimpse(wire)
+```
+
+#Break your ratings into separate training and test datasets
+Based off the article **How to split data into training/testing sets using the sample function** from www.stackoverflow.com a techniques was utilized to create the testing and traning matrices.
+
+```{r}
+set.seed(50)
+
+sample <- sample.int(n = nrow(wire), size = floor(.75*nrow(wire)), replace = F)
+wireTrain <- wire[sample,]
+wireTest <- wire[-sample,]
+```
+
+#Using your training data, calculate the raw average (mean) rating for every user-item combination
+```{r}
+# view the wireTrain matrix
+wireTrain
+```
+```{r rawAverage}
+# calculate the raw average of the wireTrain matrix
+mean(wireTrain, na.rm = TRUE)
+```
+#Calculate the RMSE (WireTest)
+```{r}
+# view the wireTest
+wireTest
+```
+```{r}
+RMSE = function(error){
+    sqrt(mean(error^2))}
+```
+```{r}
+actual <- c(7,6,5,10,9,10,8,8,9,9)
+predicted <- c(7,7,7,7,7,7,7,7,7,7)
+
+(standardError <- actual - predicted)
+```
+```{r}
+# square all the values in the error vector & name it wireTestSq
+(wireTestSq <- standardError * standardError)
+```
+```{r}
+# sum the wireTestSq and divide by 10
+sqrt(sum(wireTestSq)/10)
+```
+The **RMSE** for **wireTest**is 1.92
+
+#Calculate the RMSE (WireTrain)
+```{r}
+# view the wireTest
+wireTrain
+```
+```{r}
+RMSE = function(error){
+    sqrt(mean(error^2))}
+
+actual <- c(7,8,7,9,9,8,9,8,9,10,6,3,5,3,4)
+predicted <- c(7,7,7,7,7,7,7,7,7,7,7,7,7,7,7)
+
+(standardError <- actual - predicted)
+```
+```{r}
+# square all the values in the error vector & name it wireTestSq
+(wireTrainSq <- standardError * standardError)
+```
+```{r}
+# sum the wireTrainSq and divide by 15
+sqrt(sum(wireTrainSq)/15)
+```
+The **RMSE** for **wireTrain**is 2.22
+
+#Using your training data, calculate the bias for each user and each item
+```{r}
+# calculate the mean of each row and then subtract the raw average
+cat("\n","Rater 5 Bias Rating","\n","\n")
+(Rater5 <- mean(wireTrain[1,], na.rm = TRUE)-7)
+cat("\n","Rater 3 Bias Rating","\n","\n")
+(Rater3 <- mean(wireTrain[2,], na.rm = TRUE)-7)
+cat("\n","Rater 1 Bias Rating","\n","\n")
+(Rater1 <- mean(wireTrain[3,], na.rm = TRUE)-7)
+cat("\n","Rater 6 Bias Rating","\n","\n")
+(Rater6 <- mean(wireTrain[4,], na.rm = TRUE)-7)
+cat("\n","Column One Bias Rating","\n","\n")
+(One <- mean(wireTrain[,1], na.rm = TRUE)-7)
+cat("\n","Column Two Bias Rating","\n","\n")
+(Two <- mean(wireTrain[,2], na.rm = TRUE)-7)
+cat("\n","Column Three Bias Rating","\n","\n")
+(Three <- mean(wireTrain[,3], na.rm = TRUE)-7)
+cat("\n","Column Four Bias Rating","\n","\n")
+(Four<- mean(wireTrain[,4], na.rm = TRUE)-7)
+cat("\n","Column Five Bias Rating","\n","\n")
+(Five <- mean(wireTrain[,5], na.rm = TRUE)-7)
+```
+
+#From the raw average,and the appropriate user and item biases, calculate the baseline predictors for every user-item combination
+
+```{r}
+# Baseline Predictor = RawAvg + BiasUser + BiasRating
+# Rater5
+cat("\n","Rater 5 Column One Rating","\n","\n")
+(R5One <- 7 + 0.75 + 0.5)
+cat("\n","Rater 5 Column Two Rating","\n","\n")
+(R5Two <- 7 + 0.75 + -0.67)
+cat("\n","Rater 5 Column Three Rating","\n","\n")
+(R5Three <- 7 + 0.75 + 0)
+cat("\n","Rater 5 Column Four Rating","\n","\n")
+(R5Four <- 7 + 0.75 + -1)
+cat("\n","Rater 5 Column Five Rating","\n","\n")
+(R5Five <- 7 + 0.75 + 0.67)
+```
+```{r}
+# Baseline Predictor = RawAvg + BiasUser + BiasRating
+# Rater3
+cat("\n","Rater 3 Column One Rating","\n","\n")
+(R3One <- 7 + 1.67 + 0.5)
+cat("\n","Rater 5 Column Two Rating","\n","\n")
+(R3Two <- 7 + 1.67 + -0.67)
+cat("\n","Rater 3 Column Three Rating","\n","\n")
+(R3Three <- 7 + 1.67 + 0)
+cat("\n","Rater 3 Column Four Rating","\n","\n")
+(R3Four <- 7 + 1.67 + -1)
+cat("\n","Rater 3 Column Five Rating","\n","\n")
+(R3Five <- 7 + 1.67 + 0.67)
+```
+```{r}
+# Baseline Predictor = RawAvg + BiasUser + BiasRating
+# Rater1
+cat("\n","Rater 1 Column One Rating","\n","\n")
+(R1One <- 7 + 2 + 0.5)
+cat("\n","Rater 1 Column Two Rating","\n","\n")
+(R1Two <- 7 + 2 + -0.67)
+cat("\n","Rater 1 Column Three Rating","\n","\n")
+(R1Three <- 7 + 2 + 0)
+cat("\n","Rater 1 Column Four Rating","\n","\n")
+(R1Four <- 7 + 2 + -1)
+cat("\n","Rater 1 Column Five Rating","\n","\n")
+(R1Five <- 7 + 2 + 0.67)
+```
+```{r}
+# Baseline Predictor = RawAvg + BiasUser + BiasRating
+# Rater6
+cat("\n","Rater 6 Column One Rating","\n","\n")
+(R6One <- 7 + (-2.8) + 0.5)
+cat("\n","Rater 6 Column Two Rating","\n","\n")
+(R6Two <- 7 + (-2.8) + -0.67)
+cat("\n","Rater 6 Column Three Rating","\n","\n")
+(R6Three <- 7 + (-2.8) + 0)
+cat("\n","Rater 6 Column Four Rating","\n","\n")
+(R6Four <- 7 + (-2.8) + -1)
+cat("\n","Rater 6 Column Five Rating","\n","\n")
+(R6Five <- 7 + (-2.8) + 0.67)
+```
+
+```{r}
+wireTest
+```
+
+
+#Using your test data, calculate the bias for each user and each item
+```{r}
+# calculate the mean of each row and then subtract the raw average
+cat("\n","Rater 2 Bias Rating","\n","\n")
+(Rater2 <- mean(wireTest[1,], na.rm = TRUE)-7)
+cat("\n","Rater 4 Bias Rating","\n","\n")
+(Rater4 <- mean(wireTest[2,], na.rm = TRUE)-7)
+cat("\n","Column One Rating","\n","\n")
+(oneTest <- mean(wireTest[,1], na.rm = TRUE)-7)
+cat("\n","Column Two Rating","\n","\n")
+(twoTest <- mean(wireTest[,2], na.rm = TRUE)-7)
+cat("\n","Column Three Rating","\n","\n")
+(threeTest <- mean(wireTest[,3], na.rm = TRUE)-7)
+cat("\n","Column Four Rating","\n","\n")
+(fourTest <- mean(wireTest[,4], na.rm = TRUE)-7)
+cat("\n","Column Five Rating","\n","\n")
+(fiveTest <- mean(wireTest[,5], na.rm = TRUE)-7)
+```
+
+```{r}
+# Baseline Predictor = RawAvg + BiasUser + BiasRating
+# Rater2
+cat("\n","Rater 2 Column One Rating","\n","\n")
+(R2One <- 7 + 0.4 + 1.5)
+cat("\n","Rater 2 Column Two Rating","\n","\n")
+(R2Two <- 7 + 0.4 + 0)
+cat("\n","Rater 2 Column Three Rating","\n","\n")
+(R2Three <- 7 + 0.4 + -0.5)
+cat("\n","Rater 2 Column Four Rating","\n","\n")
+(R2Four <- 7 + 0.4 + 2.5)
+cat("\n","Rater 2 Column Five Rating","\n","\n")
+(R2Five <- 7 + 0.4 + 2)
+```
+```{r}
+# Baseline Predictor = RawAvg + BiasUser + BiasRating
+# Rater4
+cat("\n","Rater 4 Column One Rating","\n","\n")
+(R4One <- 7 + 1.8 + 1.5)
+cat("\n","Rater 4 Column Two Rating","\n","\n")
+(R4Two <- 7 + 1.8  + 0)
+cat("\n","Rater 4 Column Three Rating","\n","\n")
+(R4Three <- 7 + 1.8  + -0.5)
+cat("\n","Rater 4 Column Four Rating","\n","\n")
+(R4Four <- 7 + 1.8  + 2.5)
+cat("\n","Rater 4 Column Five Rating","\n","\n")
+(R4Five <- 7 + 1.8  + 2)
+```
+#Calculate the RMSE for the baseline predictors for both your training data and your test data
+
+##Training Dataset
+```{r}
+RMSE = function(error){
+    sqrt(mean(error^2))}
+
+actual <- c(0.75,1.67,2,-2.8,0.5,-0.67,0,-1,0.67)
+predicted <- c(7,7,7,7,7,7,7,7,7)
+
+(standardError <- actual - predicted)
+```
+```{r}
+# square all the values in the error vector & name it wireTrainSq
+(wireTrainBPSq <- standardError * standardError)
+```
+```{r}
+# sum the wireTrainSq and divide by 9
+sqrt(sum(wireTrainBPSq)/9)
+```
+##Test Dataset
+```{r}
+RMSE = function(error){
+    sqrt(mean(error^2))}
+
+actual <- c(0.4,1.8,1.5,0,-0.5,2.5,2)
+predicted <- c(7,7,7,7,7,7,7)
+
+(standardError <- actual - predicted)
+```
+```{r}
+# square all the values in the error vector & name it wireTestSq
+(wireTestBPSq <- standardError * standardError)
+```
+```{r}
+# sum the wireTrainSq and divide by 9
+sqrt(sum(wireTestBPSq)/7)
+```
+
+The **RMSE** for the **wireTrain** Baseline predictors were 7.01
+The **RMSE** for the **wireTest** Baseline predictors were 5.99
