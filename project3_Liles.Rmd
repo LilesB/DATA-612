@@ -1,0 +1,75 @@
+---
+title: "DATA 612 Project 3"
+author: "Brian Liles"
+date: "June 25, 2019"
+output: html_document
+---
+#Matrix Factorization Methods
+
+Singular Decomposition in R
+$$A = U \Sigma V^T$$
+
+According to Wikipedia, the **singular value decomposition** is a factorization of a real or complex matrix. In order to conduct this tasks the data must be complete.
+```{r}
+# create a matrix entitled a
+a <- matrix(c(4,8,3,8,7,
+              3,1,1,0,2,
+              1,1,1,0,6,
+              0,0,1,7,0,
+              3,7,6,8,0,
+              2,4,3,5,3), nrow = 6, byrow = TRUE)
+
+# create colnames
+colnames(a) <- c("The Wire","Breaking Bad","The Sopranos","Game of Thrones","The Shield")
+
+# create rownames
+rownames(a) <- c("User1","User2","User3","User4","User5","User6")
+a
+```
+
+```{r}
+# obtain the rank of the matrix 
+qr(a)$rank
+```
+
+```{r}
+# conduct the svd of the matrix a
+svd_a <- svd(a)
+```
+
+Column **U** is the eigenvector of $AA^T$
+```{r}
+# view column U of matrix a
+svd_a$u
+```
+
+Column **V** is the eigenvector of $A^TA$
+```{r}
+# view column V of matrix a
+svd_a$v
+```
+
+The diagonal matrix $\Sigma$ are the square roots of the non-zero eigenvalues of $AA^T$ and $A^TA$
+```{r}
+# view the diagonal matrix
+(d <- diag(svd_a$d))
+```
+
+#Test and Training Data Sets
+```{r}
+set.seed(50)
+sample <- sample.int(n = nrow(a), size = floor(.75*nrow(a)), replace = F)
+aTrain <- a[sample,]
+aTest <- a[-sample,]
+```
+
+#Conduct SVD for the training and test data sets
+```{r}
+# conduct the svd of the matrix a
+(svd_aTrain <- svd(aTrain))
+```
+
+```{r}
+# conduct the svd of the matrix a
+(svd_aTest <- svd(aTest))
+```
