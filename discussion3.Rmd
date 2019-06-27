@@ -1,0 +1,17 @@
+---
+title: "Research Discussion Assignment #3"
+author: "Brian Liles"
+date: "June 27, 2019"
+output: html_document
+---
+#Question
+As more systems and sectors are driven by predictive analytics, there is increasing awareness of the possibility and pitfalls of algorithmic discrimination. In what ways do you think Recommender Systems reinforce human bias? Reflecting on the techniques we have covered, do you think recommender systems reinforce or help to prevent unethical targeting or customer segmentation?  Please provide one or more examples to support your arguments.
+
+#Response
+The presentation by Evan Estola put the possibilities of algorithmic discrimination on center stage. In a humorous way, the presenter elaborated on several ways recommender systems can go haywire causing nightmares for certain businesses. In one instance, Estola explained how an algorithm he wrote created negativity within the media. An article entitled, "On Orbitz, Mac Users Steered to Pricier Hotels", caused many to believe if they purchased the Steve Jobs based machine, the priciest hotels would be become their primary options. 
+
+In the AMC drama, "Mad Men", advertisers on Madison avenue smoked cigarettes and drank alcohol in boardrooms trying to figure out how to deliver their clients products to the public. During my analysis of billboards within New York City, one can see the undenible difference between content in the urban confines of The Bronx and the swanky neighborhoods of Manhattan. Although its primarily based on demographics, it is a fine line between Park Avenue of the two mentioned boroughs. 
+
+A Forbes magazine article entitled "The Data Science Diversity Gap" showed some interesting facts that would help prove the following theory. In order to be represented properly, each gender and race should have a strong representation; this could lead to less human bias when programming recommender systems. The 2017 article stated that 35.3% of women are represented in Data Science but control the market of Digital Marketing with 70.3%. What I gather from that data is, women are marketing content that is cultivated by a majority of men. Estola mentioned in his presentation that women are less likely to be shown ads for Google's high paying jobs. The Forbes article also displayed how only 4% of Data Science classes are attended by Blacks, while 28% are Asian and 46.1% are White. Without the proper representation, it would be difficult to pose certain questions when preparing for a recommender system. 
+
+Recommender systems may not reinforce or prevent unethical targeting on purpose but a lack of representation, sparse data, and antiquated techniques can continue to widen gaps. In Estola's presentation he mentioned ethical issues with the admittance to college, which actually seems appropriate with the latest ongoing college scandal involving several celebrities. In addition, college entrance exams have also been seen as culturally biased exams which computer systems tend to rely on. In order to circumvent biases within recommender systems, we might need to chip away at the core of the systems that produce the data.
