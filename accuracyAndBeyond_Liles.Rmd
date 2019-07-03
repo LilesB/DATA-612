@@ -1,0 +1,233 @@
+---
+title: 'DATA 612 Assignment #4'
+author: "Brian K. Liles"
+date: "July 2, 2019"
+output: html_document
+---
+#Goal
+The goal of this assignment is give you practice working with accuracy and other recommender system metrics. 
+
+#Deliverables
+As in your previous assignments, compare the accuracy of at least two recommender system algorithms against your offline data. 
+
+Implement support for at least one business or user experience goal such as increased serendipity, novelty, or diversity. 
+
+Compare and report on any change in accuracy before and after you've made the change in #2.  
+
+As part of your textual conclusion, discuss one or more additional experiments that could be performed and/or metrics that could be evaluated only if online evaluation was possible.  Also, briefly propose how you would design a reasonable online evaluation environment. 
+
+#Libraries
+```{r libraries, include = FALSE}
+library(tidyverse)
+library(data.table)
+library(reshape2)
+library(recommenderlab)
+```
+
+#Import Data
+From the **recommenderlab** package, and with the guidance of the text **Building a Recommendation System with R** the data for use will be the **MovieLense**
+```{r}
+data(MovieLense)
+MovieLense
+```
+```{r}
+# create a new variable entitled MSWebDF in order to take a look at the data
+mlDF <- as(MovieLense, 'data.frame')
+head(mlDF)
+```
+```{r}
+# use the glimpse function to look at the newly created data frame
+glimpse(mlDF)
+```
+```{r}
+# summarize the rating variable
+summary(mlDF$rating)
+```
+Based off the findings from the **glimpse** and **summary** functions we see that the **MovieLense** dataset has 99,392 observations and 3 variables. In addition, the **ratings** column has a mean of 3.53, median of 4.00; datais slightly skewed to the left and scored on a scale from 1 to 5.
+
+##Similarity Matrix
+```{r}
+similarity_users <- similarity(MovieLense[1:4,],
+                               method = "cosine",
+                               which = "users")
+cat("Similarity Users Matrix Output","\n")
+(similarityMatrix <- as.matrix(similarity_users))
+```
+User similarity can also be viewed using the **image** function
+```{r}
+image(as.matrix(similarity_users), main = "MovieLense: Similarity of Users")
+```
+
+#Recommender Models
+The **recommenderlab** package has several algorithms which can create recommender models
+```{r}
+recommender_models <- recommenderRegistry$get_entries(
+    dataType = "realRatingMatrix")
+names(recommender_models)
+```
+According to the textbook, a rating equal to 0 represented a missing value. In addition, the **summary** function stated the column held values from 1 to 5; based off the text we will visualize the ratings
+```{r}
+ratings <- as.vector(MovieLense@data)
+cat("Table of MOvie Lense Ratings")
+(table_ratings <- table(ratings))
+```
+
+When creating a recommender system, a potential customer would feel more comfortable with information from reliable sources. In the text, users who have rated at least 50 movies and watched 100 were used.
+```{r}
+ratings_movies <- MovieLense[rowCounts(MovieLense) > 50,colCounts(MovieLense) > 100]
+ratings_movies
+```
+#Create Training Sets & Models for Comparison
+Based off the **ratings_movies** we will build models based off k-fold to validate models. In the text a rating_threshold was set at 3, which is slightly under the mean which was 3.53.
+
+```{r}
+test <- evaluationScheme(ratings_movies, method = "split", train = 0.8, k = 4, given = 15, goodRating = 3)
+
+# method: this is the way to split the data
+# train: this is the percentage of data in the training set
+# given: number of items to keep
+# goodRating: rating threshold
+# k: number of times to run the evaluation
+```
+The next step is to evaluate the models using the IBCF, UBCF, ALS, POPULAR methods.In addition, the measures of accuracy will also be performed for each method: RMSE, MSE, MAE
+
+###IBCF
+```{r}
+# IBCF Models
+ibcf_recMod <- Recommender(getData(test, "train"), "IBCF")
+ibcf_pred <- predict(ibcf_recMod, getData(test, "known"), type = "ratings")
+cat("IBCF Method: RMSE, MSE, MAE","\n","\n")
+(ibcf <- calcPredictionAccuracy(ibcf_pred, getData(test, "unknown")))
+```
+
+```{r}
+ibcf_results <- evaluate(test, method  = "IBCF", n = seq(10,100,10))
+class(ibcf_results)
+```
+```{r}
+head(getConfusionMatrix(ibcf_results)[[1]])
+```
+```{r}
+plot(ibcf_results, annotate = TRUE, main = "ROC Curve: IBCF Method")
+```
+
+```{r}
+plot(ibcf_results, "prec/rec", annotate = TRUE, main = "Precision-Recall: IBCF Method")
+```
+
+###ALS 
+```{r}
+# ALS Models
+als_recMod <- Recommender(getData(test, "train"), "ALS")
+als_pred <- predict(als_recMod, getData(test, "known"), type = "ratings")
+cat("ALS Method: RMSE, MSE, MAE","\n","\n")
+(als <- calcPredictionAccuracy(als_pred, getData(test, "unknown")))
+```
+
+```{r}
+als_results <- evaluate(test, method  = "ALS", n = seq(10,100,10))
+class(als_results)
+```
+```{r}
+head(getConfusionMatrix(als_results)[[1]])
+```
+```{r}
+plot(als_results, annotate = TRUE, main = "ROC Curve: ALS Method")
+```
+
+```{r}
+plot(als_results, "prec/rec", annotate = TRUE, main = "Precision-Recall: ALS Method")
+```
+
+###UBCF
+```{r}
+# UBCF Models
+ubcf_recMod <- Recommender(getData(test, "train"), "UBCF")
+ubcf_pred <- predict(ubcf_recMod, getData(test, "known"), type = "ratings")
+cat("UBCF Method: RMSE, MSE, MAE","\n","\n")
+(ubcf <- calcPredictionAccuracy(ubcf_pred, getData(test, "unknown")))
+```
+```{r}
+ubcf_results <- evaluate(test, method  = "UBCF", n = seq(10,100,10))
+class(ubcf_results)
+```
+```{r}
+head(getConfusionMatrix(ubcf_results)[[1]])
+```
+
+```{r}
+plot(ubcf_results, annotate = TRUE, main = "ROC Curve: UBCF Method")
+```
+
+```{r}
+plot(ubcf_results, "prec/rec", annotate = TRUE, main = "Precision-Recall: UBCF Method")
+```
+
+###POPULAR
+```{r}
+# POPULAR Models
+popular_recMod <- Recommender(getData(test, "train"), "POPULAR")
+popular_pred <- predict(popular_recMod, getData(test, "known"), type = "ratings")
+cat("POPULAR Method: RMSE, MSE, MAE","\n","\n")
+(popular <- calcPredictionAccuracy(popular_pred, getData(test, "unknown")))
+```
+
+```{r}
+popular_results <- evaluate(test, method  = "POPULAR", n = seq(10,100,10))
+class(popular_results)
+```
+```{r}
+head(getConfusionMatrix(popular_results)[[1]])
+```
+
+```{r}
+plot(popular_results, annotate = TRUE, main = "ROC Curve: POPULAR Method")
+```
+
+```{r}
+plot(popular_results, "prec/rec", annotate = TRUE, main = "Precision-Recall: POPULAR Method")
+```
+
+```{r}
+cat("IBCF Model Time/Prediction Time Average","\n","\n")
+(ibcf_mean <- mean(c(0.15,0.24,0.14,0.14)))
+cat("\n","ALS Model Time/Prediction Time Average","\n","\n")
+(als_mean <- mean(c(37.38,36.89,37.8,37.5)))
+cat("\n","UBCF Model Time/Prediction Time Average","\n","\n")
+(ubcf_mean <- mean(c(0.64,0.61,0.62,0.57)))
+cat("\n","POPULAR Model Time/Prediction Time Average","\n","\n")
+(popular_mean <- mean(c(0.71,0.66,0.58,0.58)))
+```
+
+It is clear that the **IBCF** has the fastest model time/prediction time, while **ALS** is the slowest out of the 4 methods.
+
+```{r}
+rbind(ibcf,als,ubcf,popular)
+```
+
+Next, we will compare the **IBCF,UBCF** techniques
+```{r}
+compare <- list(IBCF_cos = list(name = "IBCF", param = list(method = "cosine")),IBCF_cor = list(name = "IBCF", param = list(method = "pearson")), UBCF_cos = list(name = "UBCF", param = list(method = "cosine")), UBCF_cor = list(name = "UBCF", param = list(method = "pearson")))
+```
+```{r}
+compare_results <- evaluate(x = test, method = compare, n = c(1, 5, seq(10,100,10)))
+class(compare_results)
+```
+
+```{r}
+plot(compare_results, annotate = 1, legend = "topleft") 
+title("ROC CURVE")
+```
+
+```{r}
+plot(compare_results, "prec/rec", annotate = 1, legend = "topleft") 
+title("PRECISION-RECALL")
+```
+
+
+
+
+
+
+
+
