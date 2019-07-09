@@ -1,0 +1,126 @@
+---
+title: "DATA 612 - Project 5"
+author: "Brian Liles"
+date: "July 9, 2019"
+output: html_document
+---
+#Objective:
+The goal of this project is to give you practice beginning to work with a distributed recommender system. It is sufficient for this assignment to build out your application on a single node.
+
+Adapt one of your recommendation systems to work with Apache Spark and compare the performance with your previous iteration. Consider the efficiency of the system and the added complexity of using Spark. You may complete the assignment using PySpark (Python), SparkR (R) , sparklyr (R), or Scala.
+
+Please include in your conclusion: For your given recommender system's data, algorithm(s), and (envisioned) implementation, at what point would you see moving to a distributed platform such as Spark becoming necessary?
+
+#Step One: Set Up Libraries & Spark Locally
+Following the instructions based on https://github.com/rstudio/sparklyr it was decided to conduct a local spark installation.
+```{r tidyverse, include = FALSE}
+# load the tidyverse package
+library(tidyverse) #package includes dplyr
+
+# load the sparklyr package
+library(sparklyr) #sparklyr package 
+spark_install()
+
+# load the recommenderlab package
+library(recommenderlab)
+```
+
+Using **spark_connect** we will connect to the local instance of Spark
+```{r SparkConnect}
+sc <- spark_connect(master = "local")
+```
+#Step Two: Choose dataset
+From the **recommenderlab** package we will be using the **MovieLense** dataset
+```{r MovieLense}
+data("MovieLense")
+MovieLense
+```
+**MovieLense** rating matrix has 964 rows and 1664 columns
+
+#Step Three: Create Training Sets & Models for Comparison
+*As per my submission in Project #3*, when creating a recommender system, a potential customer would feel more comfortable with information from reliable sources. In the text, users who have rated at least 50 movies and watched 100 were used.
+
+```{r RatingMovies}
+ratings_movies <- MovieLense[rowCounts(MovieLense) > 50,colCounts(MovieLense) > 100]
+ratings_movies
+```
+**ratings_movies** rating matrix now has 560 rows and 332 columns
+
+```{r Test}
+test <- evaluationScheme(ratings_movies, method = "split", train = 0.8, k = 4, given = 15, goodRating = 3)
+
+# method: this is the way to split the data
+# train: this is the percentage of data in the training set
+# given: number of items to keep
+# goodRating: rating threshold
+# k: number of times to run the evaluation
+```
+
+Based off results in a prior test, the **IBCF** method proved best so we will utilize that technique.
+```{r Model}
+ibcfRecMod <- Recommender(getData(test,"train"), "IBCF")
+```
+Next, we will make predictions
+```{r Predictions}
+ibcfPred <- predict(ibcfRecMod, getData(test, "known"), type = "ratings")
+cat("IBCF Method: RMSE, MSE, MAE","\n","\n")
+(ibcf <- calcPredictionAccuracy(ibcfPred, getData(test, "unknown")))
+```
+```{r ModelTime}
+ibcfResults <- evaluate(test, method  = "IBCF", n = seq(10,100,10))
+```
+```{r Matrix}
+head(getConfusionMatrix(ibcfResults)[[1]])
+```
+
+#Step Four: Convert MovieLense to Dataframe
+```{r Convert}
+# convert the MovieLense data into a data frame entitled MovieLenseDF
+MovieLenseDF <- as(MovieLense, 'data.frame') 
+glimpse(MovieLenseDF) # use the glimpse function from the tidyverse to see the data
+```
+Next, we will convert the **factor** data to **numeric** variable
+```{r Convert2}
+# convert factor variables into numeric variables
+MovieLenseDF$user <- as.numeric(MovieLenseDF$user)
+MovieLenseDF$item <- as.numeric(MovieLenseDF$item)
+glimpse(MovieLenseDF)
+```
+#Step Five: Spark
+First, we will copy the **MovieLenseDF** data into spark using the **sdf_copy_to** command
+```{r CopySpark}
+start_time <- proc.time()
+
+# sdf_copy_to(sc, x, name, memory, repartition, overwrite, ...)
+(MovieLenseSprk <- sdf_copy_to(sc,MovieLenseDF,"spmovie", overwrite = TRUE))
+```
+According to the article **Prototyping a Recommender System Step by Step Part 2: Alternating Least Square (ALS) Matrix Factorization in Collaborative Filtering** the author informs readers on how the algorithm was constructed for Apache Spark and does a decent job at solving scalability and sparseness of ratings data.
+```{r ALS_Spark}
+MovieLenseALS <- ml_als(MovieLenseSprk)
+summary(MovieLenseALS)
+```
+Next, we will calculate predictions based on the use of **ml_als**
+```{r PredictItem}
+# item_factor predictions
+MovieLenseALS$item_factors
+```
+```{r PredictUser}
+# user_factor predictions
+MovieLenseALS$user_factors
+```
+```{r PredictOverall}
+(sparkPredict <- ml_predict(MovieLenseALS,spark_dataframe(MovieLenseSprk)))
+```
+
+#Step Six: Closing Spark
+```{r Time}
+(end_time <- proc.time() - start_time)
+```
+
+```{r}
+spark_disconnect(sc)
+```
+
+The learning curve for **sparklyr** wasn't as bad as expected, however an extended time would have been beneficial. It is easy to see how the use of the this platform is celebrated in the creation of recommendation systems.Based on the procedure time, it is faster than the **IBCF** method.
+
+
