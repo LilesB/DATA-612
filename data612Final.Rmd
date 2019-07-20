@@ -1,0 +1,333 @@
+---
+title: "DATA 612 Final Project"
+author: "Brian K. Liles"
+date: "July 18, 2019"
+output: html_document
+---
+#Final Project 
+The term **recommender system** may seem foreign to many, but we interact with these systems everyday. Years ago, when brick-and-mortar establishments reigned supreme, recommender systems existed on a human level. For example, a retail store clerk could recommend a pair of shoes to a customer after they selected a certain shirt. Currently, customers are offered recommendations at lightening speeds because of machine learning algorithms. Once a product is selected on Amazon, further options are at your disposal. Music streaming services provide their customers with similar songs based off prior selections. In addition, platforms like Netflix and Hulu do the same based off content based and collaborative filtering. During this project, we will look at two csv data sets that provide ratings and content for the **anime** genre. 
+
+#Libraries
+```{r, include = FALSE}
+library(tidyverse)
+library(recommenderlab)
+library(data.table)
+library(reshape2)
+```
+
+#Data
+From the popular database **Kaggle** the **Anime Recommendation Database** was downloaded from the following location https://www.kaggle.com/CooperUnion/anime-recommendations-database
+
+The **anime** data set was uploaded to **GitHub** while the larger **ratings** data set will be uploaded from local machine; *data set will be uploaded to CUNY repository*.
+
+**After several failed attempts, the animme and ratings data created issues once the sparse matrix was being created. During the first run of attempts, error messages stating duplicate rows surfaced. After searching the internet for solutons, I tried using the reshape2 package and the melt function which didn't rectify the issue. Lastly, an attempt of grouping the data and creating an index also failed, an example of the code is listed below**
+
+convert to matrix
+rating <- rating %>% 
+    group_by(anime_id) %>%
+    mutate(grouped_id = row_number())
+
+head(rMtrx)
+
+In order to see what datasets are available from the **recommenderlab** package we run the following code; we will be using the **MSWeb** data.
+```{r}
+data_package <- data(package = "recommenderlab") 
+data_package$results[,c("Item","Title")] 
+```
+Load the **MovieLense** data into R
+```{r}
+data("MovieLense")
+MovieLense
+```
+```{r}
+# an alternative to obtaining the number of ratings is the nratings function
+nratings(MovieLense)
+```
+Using the **summary** function in tandem with the **recommenderlab** package we can get an idea what is going on under the hood of the data.
+```{r}
+summary(rowCounts(MovieLense)) # number of ratings per row
+```
+```{r}
+summary(rowMeans(MovieLense)) # row-wise rating means
+```
+```{r}
+summary(colCounts(MovieLense)) # number of ratings per column
+```
+```{r}
+summary(colMeans(MovieLense)) # column-wise rating means
+```
+```{r}
+hist(getRatings(MovieLense), main="Distribution of ratings")
+```
+
+Based off **Building a Recommendation System with R** we can visualize the values of the ratings
+```{r}
+ratings <- as.vector(MovieLense@data)
+(tblRatings <- table(ratings))
+```
+
+Next, let's take a look at the best and worst movies within the matrix 
+```{r}
+bestCol <- which.max(colMeans(MovieLense)) 
+bestCol
+```
+```{r}
+worstCol <- which.min(colMeans(MovieLense)) 
+worstCol
+```
+An interesting visual technique is where the end user can explore the top percentile of users and movies.
+```{r}
+cat("Top Five Percent of Movies","\n")
+(minMovies <- quantile(rowCounts(MovieLense), 0.95))
+cat("\n","Top Five Percent of Users","\n")
+(minUsers <- quantile(colCounts(MovieLense), 0.95))
+```
+Next, we will visualize a heat map of the top users and movies
+```{r}
+image(MovieLense[rowCounts(MovieLense) > minMovies,
+                 colCounts(MovieLense) > minUsers], 
+                 main = "Heatmap of the Top Users and Movies")
+```
+
+#Data Preparation
+In the text, the recommendation models was constructed based off users who rated at least 50 movies. In our case, we will select users who have at least rated 25. We will call the data **silver**
+
+```{r}
+(silver <- MovieLense[rowCounts(MovieLense) > 25,
+                     colCounts(MovieLense) > 50])
+```
+Next, we will visualize the top 5% of users and movies
+```{r}
+cat("Top Five Percent  of Movies","\n")
+(minMovies <- quantile(rowCounts(silver), 0.95))
+cat("\n","Top Five Percent of Users","\n")
+(minUsers <- quantile(colCounts(silver), 0.95))
+```
+```{r}
+image(MovieLense[rowCounts(silver) > minMovies,
+                 colCounts(silver) > minUsers], 
+                 main = "Heatmap of the Top Users and Movies")
+```
+
+Next, we will visualize the average rating per user in the silver data set
+```{r}
+silverAvgPer <- rowMeans(silver)
+
+qplot(silverAvgPer) +
+    stat_bin(binwidth = 0.1) +
+    ggtitle("Average Rating Per User Based on the Silver Dataset")
+```
+
+Based off the graph, one can see that very few raters scored movies as a 2 while the bulk of the ratings were 3.5. Next, we will normalize the data 
+```{r}
+# normalizing the data
+silverNorm <- normalize(silver)
+
+image(silverNorm[rowCounts(silverNorm) > minMovies,
+                 colCounts(silverNorm) > minUsers],
+                 main = "Heatmap of the Top Users and Movies Based on Normalized Data")
+```
+
+#Recommender Lab Models
+
+In past recommendation models during the class, the **IBCF** and **UBCF** algorithm proved best so it will be the one used for this project.
+```{r}
+recModels <- recommenderRegistry$get_entries(dataType = "realRatingMatrix")
+recModels$IBCF_realRatingMatrix$parameters
+recModels$UBCF_realRatingMatrix$parameters
+```
+We will now check the similarity between users using the **similarity** function; this will be conducted based on the first four users based on the **cosine** method and then on the first four movies
+```{r}
+simUsers <- similarity(silver[1:4, ], 
+                               method = "cosine", 
+                               which = "users")
+as.matrix(simUsers) # view as a matrix
+```
+
+```{r}
+# view the similarity output
+image(as.matrix(simUsers), main = "Similarity Based on Users")
+```
+
+```{r}
+simMovies <- similarity(silver[,1:4 ], 
+                               method = "cosine", 
+                               which = "items")
+as.matrix(simMovies) # view as a matrix
+```
+
+```{r}
+# view the similarity output
+image(as.matrix(simMovies), main = "similarity Based on Movies")
+```
+
+#Item Based Collaborative Filtering Model
+Utilizing the collobarative filtering model which is based on the history of users preferences. The first step we will take is create the training/test sets based off the 80-20 method for the training and testing sets respectively.
+```{r}
+set.seed(50)
+sample <- sample.int(n = nrow(silver), size = floor(.80*nrow(silver)), replace = F)
+silverTrain <- silver[sample,]
+silverTest <- silver[-sample,]
+```
+```{r}
+# check the nratings for the training data set
+nratings(silverTrain)
+```
+```{r}
+# check the nratings for the test data set
+nratings(silverTest)
+```
+
+Within this model we will recommend 5 movies to each user
+```{r}
+IBCF_model <- Recommender(data = silverTrain, 
+                          method = "IBCF",
+                          parameter = list(k = 30))
+
+
+n_recommended <- 5 # the number of items to recommend to each user
+IBCF_predicted <- predict(object = IBCF_model, 
+                          newdata = silverTest, 
+                          n = n_recommended)
+IBCF_predicted
+```
+
+##Exploring the IBCF Model
+```{r}
+IBCF_details <- getModel(IBCF_model)
+IBCF_details$description
+```
+```{r}
+IBCF_details$k
+```
+```{r}
+class(IBCF_details$sim)
+```
+Next, we will create a heat map of the **IBCF** model
+```{r}
+image(IBCF_details$sim[1:20,1:20], main = "Heatmap of the first rows and Columns of the IBCF Model")
+```
+
+Next, we will see which movies have the most elements
+```{r}
+col_sums <- colSums(IBCF_details$sim > 0)
+
+IBCF_max <- order(col_sums, decreasing = TRUE)[1:6]
+rownames(IBCF_details$sim)[IBCF_max]
+```
+
+Next, we will create a distribution chart
+```{r}
+IBCF_matrix <- sapply(IBCF_predicted@items, function(x){
+    colnames(silver)[x]})
+
+# number of items
+noi <- factor(table(IBCF_matrix))
+chart_title <- "Distribution of the Number of Items for IBCF"
+
+# distribution chart
+qplot(noi) + 
+    ggtitle(chart_title)
+```
+
+The top rated movies based on the **IBCF** model
+```{r}
+noiSort <- sort(noi, decreasing = TRUE)
+noiTop <- head(noiSort, n = 4)
+(topFour <- data.frame(names(noiTop), noiTop))
+```
+
+#User Based Collaborative Filtering Model
+```{r}
+UBCF_model <- Recommender( data = silverTrain,
+                           method = "UBCF")
+UBCF_model
+```
+```{r}
+UBCF_details <- getModel(UBCF_model)
+names(UBCF_details)
+```
+##Applyting the Recommender Model 
+```{r}
+UBCF_predicted <- predict(object = UBCF_model, newdata = silverTest, n = 6)
+UBCF_predicted
+```
+Next, we will create a matrix with the recommended data
+```{r}
+UBCF_matrix <- sapply(UBCF_predicted@items, function(x){colnames(silver)[x]})
+UBCF_matrix[,1:4]
+```
+
+Next, we will create a distribution chart
+```{r}
+# number of items
+noi <- factor(table(UBCF_matrix))
+chart_title <- "Distribution of the Number of Items for UBCF"
+
+# distribution chart
+qplot(noi) + 
+    ggtitle(chart_title)
+```
+
+The top rated movies based on the **UBCF** model
+```{r}
+noiSort <- sort(noi, decreasing = TRUE)
+noiTop <- head(noiSort, n = 4)
+(topFour <- data.frame(names(noiTop), noiTop))
+```
+#Evaluating the Ratings
+```{r}
+models_to_evaluate <- list(
+IBCF_cos = list(name = "IBCF", 
+                param = list(method = "cosine")),
+IBCF_cor = list(name = "IBCF", 
+                param = list(method = "pearson")),
+UBCF_cos = list(name = "UBCF", 
+                param = list(method = "cosine")),
+UBCF_cor = list(name = "UBCF", 
+                param = list(method = "pearson")),
+random = list(name = "RANDOM", param=NULL)
+)
+```
+```{r}
+eval_sets <- evaluationScheme(data = silver, 
+                              method = "cross-validation",
+                              k = 4, 
+                              given = 5, 
+                              goodRating = 3)
+
+n_recommendations <- c(1, 5, seq(10, 100, 10))
+list_results <- evaluate(x = eval_sets, 
+                         method = models_to_evaluate, 
+                         n = n_recommendations)
+sapply(list_results, class) == "evaluationResults"
+```
+```{r}
+plot(list_results, annotate = 1, legend = "topleft") 
+title("ROC curve")
+plot(list_results, "prec/rec", annotate = 1, legend = "bottomright")
+title("Precision-recall")
+```
+#Conclusion
+From prior interactions with the **IBCF** and **UBCF** algorithms I favored the prior. In this particular case I choose the **UBCF** algorithm. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
